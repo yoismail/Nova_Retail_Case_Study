@@ -1,0 +1,5 @@
+pyspark==4.1.1
+pandas
+psycopg2-binary
+python-dotenv
+sqlalchemy
