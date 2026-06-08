@@ -1,108 +1,81 @@
-version: '3.8'
+name: retail_airflow_stack
 
 x-airflow-common: &airflow-common
   image: apache/airflow:2.9.2
-  environment: &airflow-common-env
+  environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@retail_postgres/${AIRFLOW_DB_NAME}
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
-
-    PYTHONPATH: /opt/retail_project
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/plugins:/opt/airflow/plugins
-
-    - ./:/opt/retail_project:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
-    - postgres
+    - retail_postgres
 
 services:
-  # POSTGRESQL DATABASE
   retail_postgres:
     image: postgres:15-alpine
     container_name: retail_postgres
     environment:
-      POSTGRES_USER: retail_user
-      POSTGRES_PASSWORD: retail_password
-      POSTGRES_DB: nova_retail_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - postgres_data:/var/lib/postgresql/data/pgdata
+      - ./sql:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U retail_user -d nova_retail_db" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - retail_network
 
-  # AIRFLOW POSTGRES (for Airflow metadata)
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+  spark:
+    build:
+      context: .
+      dockerfile: spark.Dockerfile
+    container_name: spark
+    user: root
     volumes:
-      - airflow_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U airflow" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - retail_network
+      - ./etl:/opt/retail_project/etl
+      - ./data:/opt/spark/work-dir/data
 
-  # AIRFLOW SERVICES
+    environment:
+      PYTHONPATH: /opt/retail_project
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_HOST_LOCAL: ${DB_HOST_LOCAL}
+      DB_HOST_DOCKER: ${DB_HOST_DOCKER}
+    command: sleep infinity
+
   airflow-webserver:
     <<: *airflow-common
-    container_name: retail_airflow_webserver
     command: webserver
     ports:
       - "8080:8080"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-    networks:
-      - retail_network
 
   airflow-scheduler:
     <<: *airflow-common
-    container_name: retail_airflow_scheduler
     command: scheduler
-    networks:
-      - retail_network
 
   airflow-init:
     <<: *airflow-common
-    container_name: retail_airflow_init
     command: version
     environment:
-      <<: *airflow-common-env
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@retail_postgres/${AIRFLOW_DB_NAME}
       _AIRFLOW_DB_UPGRADE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: admin
-      _AIRFLOW_WWW_USER_PASSWORD: admin
-    networks:
-      - retail_network
-    # Airflow UI: http://localhost:8080
-
-networks:
-  retail_network:
-    name: retail_network
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      #Airflow UI: http://localhost:8080
 
 volumes:
   postgres_data:
-    name: nova_retail_postgres_data
-  airflow_db_data:
-    name: nova_retail_airflow_db
