@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
-
+from airflow.operators.bash import BashOperator
 
 default_args = {
     "owner": "retail_team",
-    "description": "Run full Nova Retail ETL Pipeline: Bronze → Silver → Gold → PostgreSQL",
+    "description": "Run full Nova Retail ETL Pipeline via external Spark container",
     "depends_on_past": False,
     "start_date": datetime(2026, 1, 1),
     "email_on_failure": False,
@@ -22,10 +21,15 @@ with DAG(
     tags=["retail", "etl", "spark", "postgresql"],
 ) as dag:
 
-    run_etl = BashOperator(
+    run_spark_etl = BashOperator(
         task_id="run_full_etl_pipeline",
-        # ✅ FIXED: sets path, ensures Python finds your code
-        bash_command="export PYTHONPATH=/opt/retail_project && cd /opt/retail_project && python -m etl.run_pipeline",
+        bash_command="""
+            set -e
+            docker exec spark \
+                spark-submit \
+                    --master local[*] \
+                    /opt/retail_project/etl/run_pipeline.py
+        """,
     )
 
-    run_etl
+    run_spark_etl
