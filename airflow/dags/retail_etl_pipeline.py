@@ -24,12 +24,12 @@ with DAG(
     run_spark_etl = BashOperator(
         task_id="run_full_etl_pipeline",
         bash_command="""
-            set -e
-            docker exec spark \
-                spark-submit \
-                    --master local[*] \
-                    /opt/retail_project/etl/run_pipeline.py
-        """,
+        set -e
+        docker exec spark \
+            /opt/spark/bin/spark-submit \
+                --master local[*] \
+                /opt/retail_project/etl/run_pipeline.py
+    """,
     )
 
     run_spark_etl
