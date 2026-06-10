@@ -3,7 +3,6 @@ import sys
 import logging
 from etl.logger import setup_logging, section
 from pyspark.sql import SparkSession
-from typing import Optional
 
 
 # Configuration Constants
@@ -14,10 +13,6 @@ DRIVER_MEMORY = "14g"
 EXECUTOR_MEMORY = "14g"
 SHUFFLE_PARTITIONS = "64"
 NETWORK_TIMEOUT = "600s"
-
-
-# Initialise logging
-setup_logging()
 
 
 # Environment Setup
@@ -56,6 +51,8 @@ def create_spark_session() -> SparkSession:
 
 
 def main() -> None:
+    """Entry point for standalone execution."""
+    setup_logging()
     create_spark_session()
 
 
