@@ -1,5 +1,4 @@
 
-```markdown
 # 🏢 NOVA RETAIL GROUP: Dockerized On-Premise Data Platform with Airflow-Orchestrated Medallion ETL
 *A containerized, scheduled, three-layer Spark pipeline I built for an on-premise enterprise retail scenario, processing transactional data through PostgreSQL with Airflow orchestration and parameterized stock-vs-scaled execution.*
 
