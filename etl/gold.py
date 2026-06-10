@@ -1,12 +1,8 @@
-from pyspark.sql.functions import sum, count_distinct, avg, round
-from etl.logger import setup_logging
 import os
 import logging
+from pyspark.sql.functions import sum, count_distinct, avg, round
+from etl.logger import setup_logging
 from etl.spark_session import create_spark_session
-
-
-# Initialise logging
-setup_logging()
 
 
 def layer_path(layer, name):
@@ -26,9 +22,10 @@ def layer_path(layer, name):
 def gold_layer(silver_df):
     """
     Gold Layer processing:
-    - Create business ready datasets from clean Silver data
+    - Create business-ready datasets from clean Silver data
     - 1. Fact table: detailed sales records with key attributes only
-    - 2. Summary table: aggregated metrics by region and product category
+    - 2. Sales Summary: aggregated metrics by state + product category
+    - 3. Sales by Month + State: aggregated metrics by year-month + state
 
     Args:
         silver_df: Clean, joined DataFrame from Silver layer
@@ -38,7 +35,8 @@ def gold_layer(silver_df):
     # Step 1: Validate input
     required_columns = [
         "order_id", "customer_state", "product_category_name", "payment_value",
-        "freight_value", "payment_type", "order_purchase_date", "order_year", "order_month", "order_year_month", "order_weekday"
+        "freight_value", "payment_type", "order_purchase_date", "order_year",
+        "order_month", "order_year_month", "order_weekday"
     ]
     for col_name in required_columns:
         if col_name not in silver_df.columns:
@@ -46,7 +44,8 @@ def gold_layer(silver_df):
                 f"Missing required column in Silver data: '{col_name}'")
 
     # Step 2: Create Fact Sales table
-    # Keep only relevant columns: lightweight, analysis-ready detailed table
+    # Keep only relevant columns: lightweight, analysis-ready detailed table.
+    # Cached because it's used 4 times below (count + write + 2 aggregations).
     fact_sales = silver_df.select(
         "order_id",
         "customer_id",
@@ -64,7 +63,7 @@ def gold_layer(silver_df):
         "order_day",
         "order_year_month",
         "order_weekday"
-    )
+    ).cache()
 
     logging.info(f"Fact Sales created: {fact_sales.count()} records")
 
@@ -78,9 +77,7 @@ def gold_layer(silver_df):
             round(sum("payment_value"), 2).alias("total_revenue"),
             round(avg("payment_value"), 2).alias("avg_order_value")
         )
-        # sort nicely
         .orderBy("customer_state", "total_revenue", ascending=[True, False])
-
     )
 
     logging.info(f"Sales Summary created: {sales_summary.count()} groups")
@@ -96,6 +93,9 @@ def gold_layer(silver_df):
         )
         .orderBy("order_year_month", "customer_state")
     )
+
+    logging.info(
+        f"Sales by Month + State created: {sales_by_month_state.count()} groups")
 
     # Step 5: Save Gold datasets
     # Detailed fact table
@@ -116,23 +116,20 @@ def gold_layer(silver_df):
     logging.info(
         "=========== Gold Layer processing completed successfully ===========")
 
-    # Return all three tables
     return fact_sales, sales_summary, sales_by_month_state
 
 
 def main():
     """Main entry point: load Silver data and build Gold datasets."""
+    setup_logging()
     spark = None
     try:
-        # Create Spark session
         spark = create_spark_session()
 
-        # Read clean, validated Silver data
         silver_path = layer_path("silver", "sales_data")
         logging.info(f"Reading Silver data from: {silver_path}")
         silver_df = spark.read.parquet(silver_path)
 
-        # Run Gold transformations
         gold_layer(silver_df)
 
     except Exception as e:
@@ -140,7 +137,6 @@ def main():
         raise
 
     finally:
-        # Always release resources
         if spark:
             spark.stop()
             logging.info("=========== Spark session stopped ===========")
