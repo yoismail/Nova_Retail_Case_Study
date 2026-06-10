@@ -1,12 +1,7 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.utils import AnalysisException
 from etl.db_config import DB_CONFIG
-from etl.logger import setup_logging
 import logging
-
-
-# Initialise logging
-setup_logging()
 
 
 def get_jdbc_url() -> str:
