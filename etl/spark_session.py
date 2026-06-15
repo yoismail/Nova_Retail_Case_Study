@@ -29,7 +29,7 @@ def create_spark_session() -> SparkSession:
 
     try:
         spark = SparkSession.builder \
-            .appName(APP_NAME) \
+            .appName("Nova Retail ETL Pipeline") \
             .config("spark.jars", POSTGRES_JAR_PATH) \
             .config("spark.driver.memory", DRIVER_MEMORY) \
             .config("spark.executor.memory", EXECUTOR_MEMORY) \
