@@ -58,15 +58,16 @@ def main():
             mode="overwrite"
         )
 
-        logging.info("\033[92m✅✅✅ PIPELINE COMPLETED ✅✅✅\033[0m")
+        logging.info(
+            "\033[92m =============== PIPELINE COMPLETED ===============\033[0m")
 
     except Exception as e:
-        logging.error(f"❌ Pipeline failed: {str(e)}", exc_info=True)
+        logging.error(f"Pipeline failed: {str(e)}", exc_info=True)
         raise
     finally:
         if spark:
             spark.stop()
-            logging.info("🔌 Spark session stopped")
+            logging.info("🔌Spark session stopped")
 
 
 if __name__ == "__main__":
