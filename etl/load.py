@@ -36,7 +36,7 @@ def load_df_to_postgres(
         logging.info(f"Data ready: {row_count:,} rows | {col_count} columns")
 
         if row_count == 0:
-            logging.warning("⚠️ No data — skipping load.")
+            logging.warning("No data — skipping load.")
             return
 
         # Step 2: Write directly
@@ -54,7 +54,7 @@ def load_df_to_postgres(
           .save()
 
         logging.info(
-            f"✅ Load successful → {schema_name}.{table_name} — {row_count:,} rows")
+            f"Load successful → {schema_name}.{table_name} — {row_count:,} rows")
 
         logging.info("===========Starting validation check...===========")
 
@@ -70,14 +70,14 @@ def load_df_to_postgres(
 
         loaded = check_df.count()
         if loaded == row_count:
-            logging.info("✅ Validation OK — row count matches")
+            logging.info("Validation OK — row count matches")
         else:
             logging.warning(
-                f"⚠️ Mismatch! Source: {row_count:,} | DB: {loaded:,}")
+                f"Mismatch! Source: {row_count:,} | DB: {loaded:,}")
 
     except AnalysisException as e:
-        logging.error(f"❌ Data error: {str(e)}")
+        logging.error(f"Data error: {str(e)}")
         raise
     except Exception as e:
-        logging.error(f"❌ Load failed: {str(e)}", exc_info=True)
+        logging.error(f"Load failed: {str(e)}", exc_info=True)
         raise
